@@ -1,0 +1,5 @@
+flask
+pypiwin32
+gtts
+pygame
+requests
