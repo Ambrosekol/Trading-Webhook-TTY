@@ -1,6 +1,7 @@
 import requests
 from .webhook_status import Webhook_Status
 import audiohandler
+from datetime import datetime
 
 
 class StatusNotifier:
@@ -31,15 +32,13 @@ class StatusNotifier:
         #self.check_prev_webhook_status()
         if webhook_name == "low timeframe":
             self.webhooks_1_db.append(Webhook_Status(webhook_name, status, time_in, other_info))
-            self.logger(webhook_name, self.webhooks_1_db[-1])
             
         elif webhook_name == "midimum timeframe":
             self.webhooks_2_db.append(Webhook_Status(webhook_name, status, time_in, other_info))
-            self.logger(webhook_name, self.webhooks_2_db[-1])
             
         else:
             self.webhooks_3_db.append(Webhook_Status(webhook_name, status, time_in, other_info))
-            self.logger(webhook_name, self.webhooks_3_db[-1])
+
         
         
     def get_wh_status(self, webhook_db:list[Webhook_Status], start_location = 0):
@@ -54,39 +53,70 @@ class StatusNotifier:
     
     
     def check_validity(self):
-        latest_wh_one_entry = self.get_wh_status(self.webhooks_1_db) #checks the most recent wh
-        latest_wh_two_entry = self.get_wh_status(self.webhooks_2_db)
-        latest_wh_three_entry = self.get_wh_status(self.webhooks_3_db)
+                
+        wh = [self.get_wh_status(self.webhooks_1_db), self.get_wh_status(self.webhooks_2_db), self.get_wh_status(self.webhooks_3_db)]
+        
+        if (wh[0].get('status') == 'Green') and (wh[2].get("status") == 'Green') and (wh[1].get('status') == 'Green'):
             
-        if (latest_wh_one_entry.get('status') == 'Green') and (latest_wh_three_entry.get("status") == 'Green') and (latest_wh_two_entry.get('status') == 'Green'):
             self.talk(self.three_green)
+            
+            print("===================================================================================")
+            for _ in range(3):
+                self.logger(wh[_].get("name"), wh[_])
+            print("===================================================================================")
+            
             requests.post(self.listening_url, json={
                 "Message" : self.three_green,
-                "data" : [latest_wh_one_entry, latest_wh_two_entry, latest_wh_three_entry]
+                "Time Notified" : str(datetime.now().time()),
+                "data" : [wh[0], wh[1], wh[2]]
                 }) # Send webhook alert
             
-        elif (latest_wh_three_entry.get("status") == 'Green') and (latest_wh_two_entry.get('status') == 'Green'):
+        elif (wh[2].get("status") == 'Green') and (wh[1].get('status') == 'Green'):
+            
             self.talk(self.two_green)
+            
+            print("===================================================================================")
+            for _ in range(1, 3):
+                self.logger(wh[_].get("name"), wh[_])
+            print("===================================================================================")
+            
             requests.post(self.listening_url, json={
                 "Message" : self.two_green,
-                "data" : [latest_wh_two_entry, latest_wh_three_entry]
+                "Time Notified" : str(datetime.now().time()),
+                "data" : [wh[1], wh[2]]
                 }) # Send webhook alert
             
         else:
             pass
         
-        if (latest_wh_one_entry.get('status') == 'Red') and (latest_wh_three_entry.get("status") == 'Red') and (latest_wh_two_entry.get('status') == 'Red'):
+        if (wh[0].get('status') == 'Red') and (wh[2].get("status") == 'Red') and (wh[1].get('status') == 'Red'):
+            
             self.talk(self.three_red)
+            
+            print("===================================================================================")
+            for _ in range(3):
+                self.logger(wh[_].get("name"), wh[_])
+            print("===================================================================================")
+            
             requests.post(self.listening_url, json={
                 "Message" : self.three_red,
-                "data" : [latest_wh_one_entry, latest_wh_two_entry, latest_wh_three_entry]
+                "Time Notified" : str(datetime.now().time()),
+                "data" : [wh[0], wh[1], wh[2]]
                 }) # Send webhook alert
             
-        elif (latest_wh_three_entry.get("status") == 'Red') and (latest_wh_two_entry.get('status') == 'Red'):
+        elif (wh[2].get("status") == 'Red') and (wh[1].get('status') == 'Red'):
+            
             self.talk(self.two_red) # THIS IS WHAT IT SAYS IF THE 2 WEBHOOKS ARE Red
+            
+            print("===================================================================================")
+            for _ in range(1, 3):
+                self.logger(wh[_].get("name"), wh[_])
+            print("===================================================================================")
+            
             requests.post(self.listening_url, json={
                 "Message" : self.three_green,
-                "data" : [latest_wh_two_entry, latest_wh_three_entry]
+                "Time Notified" : str(datetime.now().time()),
+                "data" : [wh[1], wh[2]]
                 }) # Send webhook alert
             
         else:
@@ -96,12 +126,12 @@ class StatusNotifier:
         audiohandler.speak(sentence)
         
     
-    def logger(self, webhook, obj : Webhook_Status):
+    def logger(self, webhook, obj : dict):
         print(
             "====> Webhook : {} || Status: {} || Time Registered: {} || Other Info : {} <====".format(
                 webhook,
-                obj.status,
-                obj.time_registered.time(),
-                obj.other_info)
+                obj.get("status"),
+                obj.get("time_registered"),
+                obj.get("other_info"))
         )
 
